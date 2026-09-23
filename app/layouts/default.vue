@@ -21,7 +21,7 @@ import ScrollToTopButton from '@/components/layouts/ScrollToTopButton.vue'
 <style lang="scss" scoped>
 .site__main {
   // 補上 fixed header 的高度
-  padding-top: 56px;
+  padding-top: var(--header-height);
   background-color: var(--surface);
 
   &:focus {

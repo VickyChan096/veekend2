@@ -3,13 +3,11 @@ import { ref } from 'vue'
 import ExampleSection from '@/components/pages/example/ExampleSection.vue'
 import ExampleRow from '@/components/pages/example/ExampleRow.vue'
 import BaseButton from '@/components/common/button/BaseButton.vue'
-import BaseCarousel from '@/components/common/carousel/BaseCarousel.vue'
 import BaseLightbox from '@/components/common/lightbox/BaseLightbox.vue'
 import BaseMap from '@/components/common/map/BaseMap.vue'
 
 const open = defineModel<boolean>({ default: false })
 
-const slide = ref(0)
 const lightboxOpen = ref(false)
 const lightboxIndex = ref(0)
 
@@ -35,16 +33,8 @@ const openLightbox = (index: number) => {
   <ExampleSection
     v-model="open"
     title="媒體"
-    note="BaseCarousel 取代 Swiper、BaseLightbox 取代 Fancybox、BaseMap 是 MapLibre GL（必須包 ClientOnly）"
+    note="BaseLightbox 取代 Fancybox、BaseMap 是 MapLibre GL（必須包 ClientOnly）"
   >
-    <ExampleRow label="BaseCarousel">
-      <div class="media-demo">
-        <BaseCarousel v-model="slide" height="280px">
-          <VCarouselItem v-for="item in slides" :key="item.alt" :src="item.src" cover />
-        </BaseCarousel>
-      </div>
-    </ExampleRow>
-
     <ExampleRow label="BaseLightbox">
       <BaseButton
         v-for="(item, itemIndex) in slides"

@@ -271,7 +271,7 @@ repo 的 **Actions → Deploy to GitHub Pages → Run workflow** 手動觸發。
 | --- | --- |
 | **Token name** | `veekend-sheets-deploy` |
 | **Expiration** | 建議 1 年（到期要重設一次） |
-| **Repository access** | 選 **Only select repositories** → 勾 `veekend-claude` |
+| **Repository access** | 選 **Only select repositories** → 勾 `veekend2` |
 
 3. 往下找 **Repository permissions**，只開這一項：
 
@@ -297,7 +297,7 @@ repo 的 **Actions → Deploy to GitHub Pages → Run workflow** 手動觸發。
 | 屬性 | 值 |
 | --- | --- |
 | `GITHUB_TOKEN` | 剛才複製的 `github_pat_...` |
-| `GITHUB_REPO` | `VickyChan096/veekend-claude` |
+| `GITHUB_REPO` | `VickyChan096/veekend2` |
 
 3. 儲存
 
@@ -310,7 +310,7 @@ repo 的 **Actions → Deploy to GitHub Pages → Run workflow** 手動觸發。
    出現 `重建請求失敗（HTTP 401）` → 權杖打錯或已失效
    出現 `重建請求失敗（HTTP 404）` → `GITHUB_REPO` 打錯，或權限沒給 Contents 寫入
 
-4. 到 https://github.com/VickyChan096/veekend-claude/actions 看，
+4. 到 https://github.com/VickyChan096/veekend2/actions 看，
    應該有一次新的執行，來源顯示為 `repository_dispatch`
 
 ### 4. 安裝觸發器

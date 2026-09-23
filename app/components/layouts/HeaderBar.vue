@@ -1,29 +1,40 @@
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'nuxt/app'
-import { useArticles } from '@/composables/pages/useArticles'
 import { useAssetUrl } from '@/composables/common/useAssetUrl'
 import { useAlert } from '@/composables/common/useAlert'
 import { useThemeMode } from '@/composables/common/useThemeMode'
 import BaseIconButton from '@/components/common/button/BaseIconButton.vue'
-import type { Article } from '@/types/api/article'
 
 const { assetUrl } = useAssetUrl()
 const router = useRouter()
 const route = useRoute()
 const { openAlert } = useAlert()
-const { groupedByCity } = await useArticles()
 const { isDark, toggle: toggleTheme } = useThemeMode()
 
 const navOpen = ref(false)
 const openMenu = ref<string | null>(null)
 const searchText = ref('')
+const headerElement = ref<HTMLElement | null>(null)
 
-const menus = computed(() => [
-  { key: 'newTaipei', title: '新北市', articles: groupedByCity.value.newTaipei, allQuery: '新北市' },
-  { key: 'taipei', title: '台北市', articles: groupedByCity.value.taipei, allQuery: '台北市' },
-  { key: 'other', title: '其他', articles: groupedByCity.value.other, allQuery: '其他' },
-])
+const articleAreas = [
+  { key: 'taipei', title: '台北市', query: '台北市' },
+  { key: 'newTaipei', title: '新北市', query: '新北市' },
+  { key: 'other', title: '其他', query: '其他' },
+] as const
+
+const closeNavigation = () => {
+  navOpen.value = false
+  openMenu.value = null
+}
+
+const toggleNavigation = () => {
+  navOpen.value = !navOpen.value
+
+  if (!navOpen.value) {
+    openMenu.value = null
+  }
+}
 
 const toggleMenu = (key: string) => {
   openMenu.value = openMenu.value === key ? null : key
@@ -35,25 +46,43 @@ const search = () => {
     return
   }
   router.push({ path: '/result', query: { search: searchText.value.trim() } })
-  navOpen.value = false
+  closeNavigation()
 }
+
+const handlePointerDown = (event: PointerEvent) => {
+  const target = event.target
+
+  if (target instanceof Node && !headerElement.value?.contains(target)) {
+    closeNavigation()
+  }
+}
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    closeNavigation()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', handlePointerDown)
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handlePointerDown)
+  document.removeEventListener('keydown', handleKeydown)
+})
 
 // 換頁時把選單收起來
 watch(
   () => route.fullPath,
-  () => {
-    navOpen.value = false
-    openMenu.value = null
-  }
+  closeNavigation
 )
 
-// 「其他」那組要在區名前面補上縣市（legacy 的 .lastDistrict）
-const districtLabel = (article: Article, showCity: boolean) =>
-  showCity ? `${article.city} ${article.district}` : article.district
 </script>
 
 <template>
-  <header class="header">
+  <header ref="headerElement" class="header">
     <div class="header__inner">
       <div class="header__bar">
         <NuxtLink to="/" class="header__logo" aria-label="Veekend 首頁">
@@ -73,9 +102,9 @@ const districtLabel = (article: Article, showCity: boolean) =>
           class="header__hamburger"
           :class="{ 'is-open': navOpen }"
           :aria-expanded="navOpen"
-          aria-label="開啟選單"
+          :aria-label="navOpen ? '關閉選單' : '開啟選單'"
           aria-controls="site-nav"
-          @click="navOpen = !navOpen"
+          @click="toggleNavigation"
         >
           <span /><span /><span />
         </button>
@@ -96,26 +125,23 @@ const districtLabel = (article: Article, showCity: boolean) =>
         </div>
 
         <ul class="header__menu">
-          <li v-for="menu in menus" :key="menu.key" class="menu">
+          <li class="menu">
             <button
               type="button"
               class="menu__title"
-              :class="{ 'is-active': openMenu === menu.key }"
-              :aria-expanded="openMenu === menu.key"
-              @click="toggleMenu(menu.key)"
+              :class="{ 'is-active': openMenu === 'articles' }"
+              :aria-expanded="openMenu === 'articles'"
+              @click="toggleMenu('articles')"
             >
-              {{ menu.title }}
+              遊記
               <Icon name="mdi:chevron-down" class="menu__icon" aria-hidden="true" />
             </button>
-            <div v-show="openMenu === menu.key" class="menu__district">
+            <div v-show="openMenu === 'articles'" class="menu__district">
               <ul>
-                <li v-for="article in menu.articles" :key="article.week">
-                  <NuxtLink :to="`/article/${article.week}`">
-                    {{ districtLabel(article, menu.key === 'other') }}
+                <li v-for="area in articleAreas" :key="area.key">
+                  <NuxtLink :to="{ path: '/result', query: { all: area.query } }">
+                    {{ area.title }}
                   </NuxtLink>
-                </li>
-                <li class="menu__all">
-                  <NuxtLink :to="{ path: '/result', query: { all: menu.allQuery } }">全地區</NuxtLink>
                 </li>
               </ul>
             </div>
@@ -154,17 +180,23 @@ const districtLabel = (article: Article, showCity: boolean) =>
   z-index: var(--z-header);
   width: 100%;
   background-color: var(--primary);
-  box-shadow: 0 3px 6px #00000010;
+  box-shadow: 0 4px 16px #00000018;
 
   &__inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
     max-width: 1200px;
+    min-height: var(--header-height);
     margin: 0 auto;
     padding: 0 30px;
+    gap: 32px;
 
-    @include mobile {
+    @media only screen and (min-width: 993px) {
+      padding: 0 24px;
+    }
+
+    @include pad {
       flex-wrap: wrap;
       padding: 0 15px;
     }
@@ -174,9 +206,9 @@ const districtLabel = (article: Article, showCity: boolean) =>
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 8px 0;
+    flex: 0 0 auto;
 
-    @include mobile {
+    @include pad {
       width: 100%;
     }
   }
@@ -197,7 +229,10 @@ const districtLabel = (article: Article, showCity: boolean) =>
     }
 
     img {
-      width: 120px;
+      display: block;
+      flex: 0 0 auto;
+      width: 116px;
+      height: auto;
     }
   }
 
@@ -206,77 +241,126 @@ const districtLabel = (article: Article, showCity: boolean) =>
     display: none;
     flex-direction: column;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 0 4px;
+    width: 42px;
+    height: 42px;
+    padding: 0 10px;
+    cursor: pointer;
     background-color: var(--secondary);
-    border: 0;
-    border-radius: var(--border-radius-s);
+    border: 1px solid var(--secondary);
+    border-radius: var(--border-radius-m);
 
-    @include mobile {
+    @include pad {
       display: flex;
     }
 
     span {
       display: block;
-      height: 1px;
-      background-color: #ffffff;
-      transition: var(--transition-slow);
+      height: 2px;
+      background-color: var(--primary);
+      border-radius: 999px;
+      transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
     span + span {
-      margin-top: 8px;
+      margin-top: 6px;
     }
 
     &.is-open span:nth-child(1) {
+      transform: translateX(-4px);
       opacity: 0;
     }
     &.is-open span:nth-child(2) {
-      transform: rotate(-45deg);
+      transform: translateY(4px) rotate(-45deg);
     }
     &.is-open span:nth-child(3) {
-      margin-top: -1px;
-      transform: rotate(45deg);
+      margin-top: -2px;
+      transform: translateY(-4px) rotate(45deg);
     }
   }
 
   &__nav {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex: 1 1 auto;
+    gap: 24px;
+    min-width: 0;
 
-    @include mobile {
-      position: absolute;
-      top: 56px;
+    @media only screen and (min-width: 993px) {
+      justify-content: space-between;
+      gap: 28px;
+    }
+
+    @include pad {
+      position: fixed;
+      top: var(--header-height);
       left: 0;
-      display: none;
-      flex-wrap: wrap;
+      right: 0;
+      display: block;
       width: 100%;
-      padding: 8px;
-      background-color: var(--divider);
+      height: calc(100dvh - var(--header-height));
+      max-height: none;
+      padding: 20px 16px 24px;
+      overflow-y: auto;
+      pointer-events: none;
+      visibility: hidden;
+      background-color: var(--surface);
+      border-top: 1px solid #00000018;
+      box-shadow: 0 14px 28px #00000018;
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
     }
   }
 
   &__nav.is-open {
-    @include mobile {
-      display: block;
+    @include pad {
+      pointer-events: auto;
+      visibility: visible;
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 
   &__search {
     display: flex;
+    flex: 1 1 280px;
+    min-width: 0;
+    max-width: 320px;
+    height: 42px;
+    overflow: hidden;
+    background-color: var(--surface);
+    border: 2px solid var(--secondary);
+    border-radius: var(--border-radius-xl);
+
+    @media only screen and (min-width: 993px) {
+      order: 2;
+      flex: 0 1 220px;
+      max-width: 220px;
+      height: 38px;
+      background-color: #ffffff;
+      border: 0;
+    }
 
     input {
-      width: 25vw;
-      height: 30px;
-      padding: 8px;
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+      height: 100%;
+      padding: 0 16px;
       // 小於 16px 會讓 iOS 聚焦時自動放大畫面
       font-size: 1rem;
+      color: var(--font);
+      background-color: var(--surface);
       border: 0;
-      border-radius: var(--border-radius-s) 0 0 var(--border-radius-s);
+      outline: 0;
 
-      @include mobile {
-        width: 100%;
-        margin-bottom: 8px;
+      &::placeholder {
+        color: var(--placeholder);
+      }
+
+      @include pad {
+        padding: 0 14px;
       }
     }
 
@@ -284,20 +368,51 @@ const districtLabel = (article: Article, showCity: boolean) =>
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 30px;
-      height: 30px;
-      color: #ffffff;
-      background-color: var(--secondary);
+      flex: 0 0 42px;
+      width: 42px;
+      height: 100%;
+      cursor: pointer;
+      color: var(--secondary);
+      background-color: transparent;
       border: 0;
-      border-radius: 0 var(--border-radius-s) var(--border-radius-s) 0;
+      border-left: 1px solid var(--divider);
+      transition: background-color 0.2s ease, color 0.2s ease;
+
+      &:hover {
+        color: var(--primary);
+        background-color: var(--secondary);
+      }
+
+      &:focus-visible {
+        outline: var(--focus-visible);
+        outline-offset: -4px;
+      }
+    }
+
+    @include pad {
+      width: 100%;
+      max-width: none;
     }
   }
 
   &__menu {
     display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    margin: 0;
 
-    @include mobile {
-      flex-wrap: wrap;
+    @media only screen and (min-width: 993px) {
+      order: 1;
+      flex: 1 1 auto;
+      justify-content: center;
+    }
+
+    @include pad {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      margin-top: 12px;
     }
   }
 }
@@ -306,12 +421,12 @@ const districtLabel = (article: Article, showCity: boolean) =>
   position: relative;
   display: flex;
   align-items: center;
-  margin-left: 10px;
+  margin: 0;
 
-  @include mobile {
+  @include pad {
     flex-wrap: wrap;
     width: 100%;
-    margin: 0 0 8px 20px;
+    margin: 0;
   }
 
   &__title {
@@ -320,49 +435,61 @@ const districtLabel = (article: Article, showCity: boolean) =>
     z-index: 1;
     display: flex;
     align-items: center;
+    min-height: 40px;
+    padding: 8px 12px;
+    cursor: pointer;
     color: var(--secondary);
     background: none;
     border: 0;
+    border-radius: var(--border-radius-s);
+    transition: background-color 0.2s ease, color 0.2s ease;
 
-    // legacy 的白色底線：從中間往兩邊展開
-    &::after {
-      content: '';
-      position: absolute;
-      top: 55%;
-      left: 50%;
-      z-index: -1;
-      width: 0;
-      border-bottom: 10px solid #ffffff;
-      transform: translateX(-50%);
-      transition: var(--transition-fast);
-
-      @include mobile {
-        display: none;
-      }
-    }
-
-    &.is-active::after {
-      width: calc(110% + 8px);
+    @media only screen and (min-width: 993px) {
+      min-height: 38px;
+      padding: 7px 13px;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
     }
 
     @include hover {
-      &:hover::after {
-        width: calc(110% + 8px);
+      &:hover {
+        color: var(--primary);
+        background-color: var(--secondary);
       }
+    }
+
+    &.is-active {
+      color: var(--primary);
+      background-color: var(--secondary);
     }
 
     &:focus-visible {
       outline: var(--focus-visible);
+      outline-offset: 2px;
+    }
+
+    @include pad {
+      justify-content: space-between;
+      width: 100%;
+      color: var(--font);
+      background-color: var(--container);
+      border: 1px solid var(--divider);
+
+      &.is-active {
+        background-color: var(--primary);
+        color: #000000;
+      }
     }
   }
 
   &__icon {
-    margin-left: 2px;
+    margin-left: 4px;
     font-size: 0.75rem;
     color: var(--primary-darken);
     transition: var(--transition-fast);
 
-    @include mobile {
+    @include pad {
       display: none;
     }
   }
@@ -373,10 +500,11 @@ const districtLabel = (article: Article, showCity: boolean) =>
 
   &__district {
     position: absolute;
-    top: 28px;
-    right: -11px;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 2;
 
-    @include mobile {
+    @include pad {
       position: relative;
       top: 0;
       right: 0;
@@ -388,12 +516,14 @@ const districtLabel = (article: Article, showCity: boolean) =>
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    width: 320px;
-    padding-top: 8px;
-    background-color: #ffffff;
+    width: min(360px, calc(100vw - 32px));
+    padding: 12px;
+    background-color: var(--surface);
     border: 1px solid var(--divider);
+    border-radius: var(--border-radius-m);
+    box-shadow: 0 12px 24px #00000016;
 
-    @include mobile {
+    @include pad {
       width: 100%;
       max-height: 300px;
       padding: 8px;
@@ -403,37 +533,26 @@ const districtLabel = (article: Article, showCity: boolean) =>
 
   &__district > ul > li {
     @include body2-regular;
-    padding: 0 4px;
-    margin-bottom: 8px;
+    width: 100%;
+    padding: 8px 12px;
     color: var(--subtitle);
-    border-left: 1px solid var(--divider);
+    border: 1px solid transparent;
+    border-radius: var(--border-radius-s);
     transition: var(--transition-fast);
 
-    @include mobile {
-      padding: 4px 8px;
-      margin: 4px;
-      border: 1px solid var(--divider);
-      border-radius: var(--border-radius-s);
-    }
-  }
-
-  // 每列第一個不畫左分隔線
-  &__district > ul > li:nth-child(5n + 1) {
-    border-left: 0;
-
-    @include mobile {
-      border: 1px solid var(--divider);
+    @include pad {
+      padding: 10px 12px;
+      margin: 0;
+      border-color: var(--divider);
+      border-radius: 0;
     }
   }
 
   &__district > ul > li:hover {
     @include hover {
       background-color: var(--primary);
+      color: var(--secondary);
     }
-  }
-
-  &__all {
-    font-weight: 500;
   }
 }
 </style>

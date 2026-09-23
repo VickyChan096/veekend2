@@ -7,7 +7,7 @@
  * 在 nuxt generate 之後跑，讀 .output/public 下所有 index.html 反推網址。
  *
  * 用法：node scripts/generate-sitemap.mjs
- * 需要 NUXT_PUBLIC_SITE_URL（例如 https://vickychan096.github.io/veekend-claude）。
+ * 需要 NUXT_PUBLIC_SITE_URL（例如 https://vickychan096.github.io/veekend2）。
  */
 import fs from 'node:fs'
 import path from 'node:path'

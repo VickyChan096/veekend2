@@ -176,7 +176,7 @@ app/
 
 ## 部署
 
-**站台：https://vickychan096.github.io/veekend-claude/**（repo `VickyChan096/veekend-claude`）
+**站台：https://vickychan096.github.io/veekend2/**（repo `VickyChan096/veekend2`）
 
 push 到 `main` 就由 `.github/workflows/deploy.yml` 自動建置並發布。
 
