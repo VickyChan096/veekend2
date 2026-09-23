@@ -212,6 +212,10 @@ npm run sheets:verify
 NUXT_PUBLIC_GAS_API_URL=https://script.google.com/macros/s/你的ID/exec
 ```
 
+建置時會共用同一個進行中的 GAS 請求，避免 prerender 併發頁面同時重複讀取。
+單次請求逾時為 30 秒，失敗後最多再嘗試 2 次；若仍無法取得文章，建置會中止，
+不會改用備份資料產出內容不完整的正式網站。
+
 然後：
 
 ```bash
